@@ -8,11 +8,11 @@ This approach has been evaluated on hand and feet radiographs of patients suffer
 1 and secured 4th and 8th position in predicting overall and joint level erosion and narrowing SvH scores from radiographs respectively.
 
 # Sample output from the Object Detection Model for Hand and Feet
-![Alt text](images\Final_hand_annotation.JPG?raw=true "Title")
-![Alt text](images\Final_foot_annotation.JPG?raw=true "Title")
+![alt text](https://github.com/NC717/DeepRA/blob/main/images/Final_foot_annotation.JPG?raw=true "Fingers detected in feet radiographs")
+![alt text](https://github.com/NC717/DeepRA/blob/main/images/Final_hand_annotation.JPG?raw=true "Fingers/Wrist detected in hand radiographs")
 
 # Attention Map visuals
 - Foot Erosion Attention Maps
-![Alt text](images\Foot_erosion_attention_maps.JPG?raw=true "Title")
+![alt text](https://github.com/NC717/DeepRA/blob/main/images/Foot_erosion_attention_maps.JPG?raw=true "Attention weights while predicting erosion in feet fingers")
 - Wrist Erosion Attention Maps
-![Alt text](images\Wrist_erosion_attention.JPG?raw=true "Title")
+![alt text](https://github.com/NC717/DeepRA/blob/main/images/Wrist_erosion_attention.JPG?raw=true "AAttention weights while predicting erosion in wrist")
