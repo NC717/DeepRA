@@ -1,6 +1,7 @@
 # User/Nc717
 
 # First error was here -> Common functionalities
+import time # remeber to remove it while making docker submission
 import pandas as pd 
 import os
 from os import listdir, walk
@@ -53,8 +54,10 @@ def get_joint_detection_model(model_path, model_type):
     Output -> Inference model for getting the predictions on test images
     
     """
-    #config_file_path = '/usr/local/bin/config'
+    # config_file_path = '/usr/local/bin/config'
     if model_type == 'Foot_detection':
+        # with open('/usr/local/bin/src/config.ini','w') as f:
+        #     f.write('[anchor_parameters]\nsizes   = 32 64 128 256 512 1024\nstrides = 8 16 32 64 128 256\nratios  = 1.2 1.5 2 2.5 3\nscales  =1 1.5 2\n')
 
         model, training_model, prediction_model = create_models(
         backbone_retinanet=backbone('resnet50').retinanet,
@@ -63,12 +66,14 @@ def get_joint_detection_model(model_path, model_type):
         multi_gpu=False,
         freeze_backbone=True,
         lr=1e-3,
-        config=read_config_file('/usr/local/bin/config/config_foot.ini'))
+        config=read_config_file('/usr/local/bin/Config files/config_foot.ini'))
 
         training_model.load_weights(model_path)
-        infer_model = convert_model(training_model, anchor_params = parse_anchor_parameters(read_config_file('/usr/local/bin/config/config_foot.ini')))
+        infer_model = convert_model(training_model, anchor_params = parse_anchor_parameters(read_config_file('/usr/local/bin/Config files/config_foot.ini')))
 
     elif model_type == 'Hand_detection':
+        # with open('/usr/local/bin/src/config.ini','w') as f:
+        #     f.write('[anchor_parameters]\nsizes   = 32 64 128 256 512 1024\nstrides = 8 16 32 64 128 256\nratios  = 1 1.5 2 2.5 3\nscales  = 1 1.2 1.6\n')
 
         model, training_model, prediction_model = create_models(
             backbone_retinanet=backbone('resnet50').retinanet,
@@ -77,9 +82,9 @@ def get_joint_detection_model(model_path, model_type):
             multi_gpu=False,
             freeze_backbone=True,
             lr=1e-3,
-            config=read_config_file('/usr/local/bin/config/config_hand.ini'))
+            config=read_config_file('/usr/local/bin/Config files/config_hand.ini'))
         training_model.load_weights(model_path)
-        infer_model = convert_model(training_model, anchor_params = parse_anchor_parameters(read_config_file('/usr/local/bin/config/config_hand.ini')))
+        infer_model = convert_model(training_model, anchor_params = parse_anchor_parameters(read_config_file('/usr/local/bin/Config files/config_hand.ini')))
     
     return infer_model
 
@@ -207,15 +212,27 @@ def get_predictions_for_joints(test_path, image_ids_list, model_path_dict):
     """
 
     #All joints arrays 
-
-    foot_finger = []
+    #Foot package
+    foot_finger_size_256 = []
+    foot_finger_size_224 = []
     foot_finger_id = []
-    hand_finger = []
-    hand_finger_id = []
+
+    #Hand narrowing package
+    hand_finger_256 = []
+    hand_finger_224 = []
+    hand_finger_narrowing_id = []
+
+    hand_finger_all = [] 
+    hand_finger_all_id = []
+
+    #Wrist package
     hand_ip = []
     hand_ip_id =[]
+
+    #Wrist package
     wrist = []
     wrist_id = []
+
 
     for type in model_path_dict.keys():
 
@@ -274,91 +291,156 @@ def get_predictions_for_joints(test_path, image_ids_list, model_path_dict):
             image_from_opencv = resize_image(load_image_file(os.path.join(test_path, image_id + ".jpg")), min_side=min_size,max_side=max_size)[0]
 
             ## Read the necessary image
-            size = 224
+            # size = 256
 
             for labels in abc['labels'].unique().tolist():
                 #Extracting box for the joint 
                 boxes = np.array(abc[abc['labels'] == labels][['xmin','ymin','xmax','ymax']].values[0], dtype='int')
 
                 #Saving the extracted joint in a associated list
-                try:
-                    if (image_id.split("-")[1] in ['LF', 'RF']) & (labels in ['fin_1' ,'fin_2','fin_3','fin_4']):
-                        joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
-                        joint = cv2.resize(joint, (size, size))
-                        joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
-                        joint = joint.astype(np.float32)/255.
-                        # print(joint.shape)
-                        # plt.title(labels+ " " + image_id + "-" + str(labels) + '.jpg')
-                        # plt.imshow(joint)
-                        # plt.show()
-                        foot_finger.append(joint)
-                        foot_finger_id.append(image_id + "-" + str(labels) + '.jpg')
+            
+                if (image_id.split("-")[1] in ['LF', 'RF']) & (labels in ['fin_1' ,'fin_2','fin_3','fin_4']):
+                    joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint = cv2.resize(joint, (256, 256))
+                    joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
+                    joint = joint.astype(np.float32)/255.
 
-                    # Hand finger list creation 
-                    elif (image_id.split("-")[1] in ['LF', 'RF']) & (labels in ['fin_ip']):
-                        joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
-                        joint = cv2.resize(joint, (size, size))
-                        joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
-                        joint = joint.astype(np.float32)/255.
-                        # print(joint.shape)
-                        # plt.title(labels+ " " + image_id + "-" + str(labels) + '.jpg')
-                        # plt.imshow(joint)
-                        # plt.show()
-                        hand_finger.append(joint)
-                        hand_finger_id.append(image_id + "-" + str(labels) + '.jpg')
+                    foot_finger_size_256.append(joint)
 
-                    elif (image_id.split("-")[1] in ['LH', 'RH']) & (labels in ['fin_1' ,'fin_2','fin_3','fin_4']):
-                        joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
-                        joint = cv2.resize(joint, (size, size))
-                        joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
-                        joint = joint.astype(np.float32)/255.
-                        # print(joint.shape)
-                        # plt.title(labels+ " " + image_id + "-" + str(labels) + '.jpg')
-                        # plt.imshow(joint)
-                        # plt.show()
-                        hand_finger.append(joint)
-                        hand_finger_id.append(image_id + "-" + str(labels) + '.jpg')
+                    foot_finger_id.append(image_id + "-" + str(labels) + '.jpg')
 
-                    #Wrist joints creation
-                    elif  (image_id.split("-")[1] in ['LH', 'RH']) & (labels in ['wrist']):
-                        joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
-                        joint = cv2.resize(joint, (size, size))
-                        joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
-                        joint = joint.astype(np.float32)/255.
-                        # print(joint.shape)
-                        # plt.title(labels + " " + image_id + "-" + str(labels) + '.jpg')
-                        # plt.imshow(joint)
-                        # plt.show()
-                        wrist.append(joint)
-                        wrist_id.append(image_id + "-" + str(labels) + '.jpg')
+                    joint_2 = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint_2 = cv2.resize(joint_2, (224, 224))
+                    joint_2 = cv2.cvtColor(joint_2, cv2.COLOR_BGR2RGB)
+                    joint_2 = joint_2.astype(np.float32)/255.
 
-                    #Hand IP joint creation
-                    elif (image_id.split("-")[1] in ['LH', 'RH']) & (labels in ['fin_ip']):
-                        joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
-                        joint = cv2.resize(joint, (size, size))
-                        joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
-                        joint = joint.astype(np.float32)/255.
-                        # print(joint.shape)
-                        # plt.title(labels + " " + image_id + "-" + str(labels) + '.jpg')
-                        # plt.imshow(joint)
-                        # plt.show()
-                        hand_ip.append(joint)
-                        hand_ip_id.append(image_id + "-" + str(labels) + '.jpg')
-                except:
-                    pass
+                    foot_finger_size_224.append(joint_2)
 
-        image_array_dict = {
-                            'Foot_finger': [np.array(foot_finger), foot_finger_id],
-                            'Hand_finger':[np.array(hand_finger), hand_finger_id],
-                            'hand_ip': [np.array(hand_ip),hand_ip_id],
+
+                # Hand finger list creation 
+                elif (image_id.split("-")[1] in ['LF', 'RF']) & (labels in ['fin_ip']):
+
+                    #Updating the all hand finger for Erosion prediction
+                    joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint = cv2.resize(joint, (224, 224))
+                    joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
+                    joint = joint.astype(np.float32)/255.
+
+                    hand_finger_all.append(joint)
+                    hand_finger_all_id.append(image_id + "-" + str(labels) + '.jpg')
+
+                    #Appending into 256 image list for arrowing prediction
+                    joint_IP = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint_IP = cv2.resize(joint_IP, (256, 256))
+                    joint_IP = cv2.cvtColor(joint_IP, cv2.COLOR_BGR2RGB)
+                    joint_IP = joint_IP.astype(np.float32)/255.
+                    hand_finger_256.append(joint_IP)
+
+                    
+                    hand_finger_narrowing_id.append(image_id + "-" + str(labels) + '.jpg')
+
+                    print('appended foot ip image id ')
+
+                    #Appending into image size 224 for narrowing prediction
+                    joint_IP_2 = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint_IP_2 = cv2.resize(joint_IP_2, (224, 224))
+                    joint_IP_2 = cv2.cvtColor(joint_IP_2, cv2.COLOR_BGR2RGB)
+                    joint_IP_2 = joint_IP_2.astype(np.float32)/255.
+                    hand_finger_224.append(joint_IP_2)
+                    
+                elif (image_id.split("-")[1] in ['LH', 'RH']) & (labels in ['fin_1' ,'fin_2','fin_3','fin_4']):
+                    joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint = cv2.resize(joint, (256, 256))
+                    joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
+                    joint = joint.astype(np.float32)/255.
+
+                    hand_finger_256.append(joint)
+                    hand_finger_narrowing_id.append(image_id + "-" + str(labels) + '.jpg')
+
+                    #Joint set for narrowing prediction is finally completed here
+                    joint_IP = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint_IP = cv2.resize(joint_IP, (224, 224))
+                    joint_IP = cv2.cvtColor(joint_IP, cv2.COLOR_BGR2RGB)
+                    joint_IP = joint_IP.astype(np.float32)/255.
+
+                    hand_finger_224.append(joint_IP)
+                    hand_finger_all.append(joint_IP)
+
+                    hand_finger_all_id.append(image_id + "-" + str(labels) + '.jpg')
+
+                elif (image_id.split("-")[1] in ['LH', 'RH']) & (labels in ['fin_ip']):
+                    joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint = cv2.resize(joint, (256, 256))
+                    joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
+                    joint = joint.astype(np.float32)/255.
+
+                    hand_ip.append(joint)
+                    hand_ip_id.append(image_id + "-" + str(labels) + '.jpg')
+
+                    joint_v2 = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint_v2 = cv2.resize(joint_v2, (224, 224))
+                    joint_v2 = cv2.cvtColor(joint_v2, cv2.COLOR_BGR2RGB)
+                    joint_v2 = joint_v2.astype(np.float32)/255.
+
+                    hand_finger_all.append(joint_v2)
+                    hand_finger_all_id.append(image_id + "-" + str(labels) + '.jpg')
+
+                #Wrist joints creation
+                elif  (image_id.split("-")[1] in ['LH', 'RH']) & (labels in ['wrist']):
+                    joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint = cv2.resize(joint, (200, 200))
+                    joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
+                    joint = joint.astype(np.float32)/255.
+
+                    wrist.append(joint)
+                    wrist_id.append(image_id + "-" + str(labels) + '.jpg')
+
+                #Hand IP joint creation
+                elif (image_id.split("-")[1] in ['LH', 'RH']) & (labels in ['fin_ip']):
+                    joint = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint = cv2.resize(joint, (256, 256))
+                    joint = cv2.cvtColor(joint, cv2.COLOR_BGR2RGB)
+                    joint = joint.astype(np.float32)/255.
+
+                    hand_ip.append(joint)
+                    hand_ip_id.append(image_id + "-" + str(labels) + '.jpg')
+
+                    joint_v2 = image_from_opencv[boxes[1]: boxes[3], boxes[0]:boxes[2]]
+                    joint_v2 = cv2.resize(joint_v2, (224, 224))
+                    joint_v2 = cv2.cvtColor(joint_v2, cv2.COLOR_BGR2RGB)
+                    joint_v2 = joint_v2.astype(np.float32)/255.
+
+                    hand_finger_all.append(joint_v2)
+                    hand_finger_all_id.append(image_id + "-" + str(labels) + '.jpg')
+
+    # 'wrist_erosion', 'Hand_finger_erosion', 'Foot_finger_size_256_none', 'Foot_finger_size_224_none', 
+    # 'Hand_finger_size_256_narrowing', 'Hand_finger_size_224_narrowing', 'wrist_narrowing', 'hand_ip_narrowing'
+    
+        image_array_dict = {  #Foot models have two image sizes 256, 224 merge both the predictions
+                            'Foot_finger_size_256': [np.array(foot_finger_size_256), foot_finger_id],
+                            'Foot_finger_size_224': [np.array(foot_finger_size_224), foot_finger_id],
+
+                            #For erosion we have two models which have same image size This is for (Hand  4 + IP and foot IP joints)
+                            'Hand_finger': [np.array(hand_finger_all), hand_finger_all_id],
+
+                            # Combining two image sizes for hand finger narrowing prediction
+
+                            'Hand_finger_size_256':[np.array(hand_finger_256), hand_finger_narrowing_id],
+                            'Hand_finger_size_224':[np.array(hand_finger_224), hand_finger_narrowing_id],
+
+                            'hand_ip': [np.array(hand_ip), hand_ip_id],
+
+                            # 'Hand_finger_erosion': [np.array(hand_finger_erosion), hand_finger_erosion_id],
+
                             'wrist': [np.array(wrist), wrist_id]
-
                             }
+
+    # print(np.array(hand_finger_all).shape, np.array(hand_finger_256).shape, np.array(hand_finger_224).shape, print(hand_finger_narrowing_id), print(hand_ip_id))
     return image_array_dict
 
 # ========================= Generates the prediction file for the Patients ==============================
 
-def get_final_submission_file(check, joint_type, mapping_file, PATIENT_ID_LIST):
+def get_final_submission_file(check, joint_type, prediction_type, mapping_file, PATIENT_ID_LIST):
     """Psuedo code -- 
     Input -> Prediction file for Hand fingers, Foot fingers, Wrists and Hand IP joints, including the joint IDS and Labels for the Joint patches
              Specify type of prediction file associated
@@ -370,20 +452,44 @@ def get_final_submission_file(check, joint_type, mapping_file, PATIENT_ID_LIST):
         check['Patient_ID'] = check['Joint_image_ID'].str.split("-", expand=True)[0]
         check['limb_name']  = check['Joint_image_ID'].str.split("-", expand=True)[1]
         check['joint_name'] = check['Joint_image_ID'].str.split("-", expand=True)[2]
+        
         final_df = pd.DataFrame()
+
         for val in check['limb_name'].unique().tolist():
             if val =='LH':
-                columns = mapping_file[val+"-"+check['joint_name'].values[0]] + ['Joint_image_ID', 'Patient_ID', 'limb_name','joint_name']
+                if prediction_type =='erosion':
+                    new_cols = mapping_file[val+"-"+check['joint_name'].values[0]]
+                    new_cols = [col for col in new_cols for st in col.split("_") if st in ['E']]
+
+                elif prediction_type == 'narrowing':
+
+                    new_cols = mapping_file[val+"-"+check['joint_name'].values[0]]
+                    new_cols = [col for col in new_cols for st in col.split("_") if st in ['J']]
+
+                elif prediction_type == 'none':
+                    new_cols = mapping_file[val+"-"+check['joint_name'].values[0]]
+
+                columns = new_cols + ['Joint_image_ID', 'Patient_ID', 'limb_name','joint_name']
+
             elif val == 'RH':
-                columns = mapping_file[val+"-"+check['joint_name'].values[0]]+ ['Joint_image_ID', 'Patient_ID', 'limb_name','joint_name']
+                if prediction_type =='erosion':
+                    new_cols = mapping_file[val+"-"+check['joint_name'].values[0]]
+                    new_cols = [col for col in new_cols for st in col.split("_") if st in ['E']]
+
+                elif prediction_type == 'narrowing':
+
+                    new_cols = mapping_file[val+"-"+check['joint_name'].values[0]]
+                    new_cols = [col for col in new_cols for st in col.split("_") if st in ['J']]
+
+                columns = new_cols  + ['Joint_image_ID', 'Patient_ID', 'limb_name','joint_name']
 
             # print(columns)
             # print("Got the column names ", columns)
             temp = check[check['limb_name'] == val].reset_index()
             del temp['index']
             temp.columns = columns 
-
-            final_df = pd.concat([final_df, temp[['Patient_ID'] + mapping_file[val+"-"+check['joint_name'].values[0]]] ], axis = 1)
+            
+            final_df = pd.concat([final_df, temp[['Patient_ID'] + new_cols]], axis = 1)
             # print(final_df)
 
         final_df  = final_df.loc[:,~final_df.columns.duplicated()]
@@ -395,12 +501,26 @@ def get_final_submission_file(check, joint_type, mapping_file, PATIENT_ID_LIST):
 
         final_df = pd.DataFrame()
         for limb in check['limb_joint_name'].unique().tolist():
-            columns = mapping_file[limb] + ['Joint_image_ID', 'Patient_ID', 'limb_joint_name']
 
-            temp=check[check['limb_joint_name'] == limb].reset_index()
+            if prediction_type =='erosion':
+                new_cols = mapping_file[limb]
+                new_cols = [col for col in new_cols for st in col.split("_") if st in ['E']]
+
+            elif prediction_type == 'narrowing':
+
+                new_cols = mapping_file[limb]
+                new_cols = [col for col in new_cols for st in col.split("_") if st in ['J']]
+
+            elif prediction_type == 'none':
+                new_cols = mapping_file[limb]
+
+            columns = new_cols + ['Joint_image_ID', 'Patient_ID', 'limb_joint_name']
+            
+            temp =check[check['limb_joint_name'] == limb].reset_index()
             del temp['index']
+
             temp.columns = columns
-            final_df = pd.concat([final_df, temp[['Patient_ID'] + mapping_file[limb]]], axis = 1)
+            final_df = pd.concat([final_df, temp[['Patient_ID'] + new_cols]], axis = 1)
 
         # final_df['Final_ptid'] = PATIENT_ID_LIST
         final_df = final_df.loc[:,~final_df.columns.duplicated()]
@@ -409,7 +529,6 @@ def get_final_submission_file(check, joint_type, mapping_file, PATIENT_ID_LIST):
 
 
     return final_df
-    
 # ============================== Loads model's and makes prediction =============================
 def get_prediction_files(test_path,  joint_model_path_mapping, 
                          mapping_file, column_mapping, erosion_cols, narrowing_cols,
@@ -434,32 +553,104 @@ def get_prediction_files(test_path,  joint_model_path_mapping,
         # from keras_radam import RAdam
         model_weights = joint_model_path_mapping[joint_type]
 
-        # depend = {'rmse': rmse}
-        loaded_model = load_model(model_weights, custom_objects={'rmse': rmse})
-        print("Model loaded succesfully -> " + joint_type)
+        if joint_type in ['Foot_finger_none', 'Hand_finger_narrowing']:
+            joint_preds = pd.DataFrame()
+            for sub_model in model_weights.keys():
+                weight = model_weights[sub_model][0][0]
+                sub_model_path =   model_weights[sub_model][1][0]
+                print(weight, sub_model_path)
 
-        # #Test data generators initiation
-        # img = next(RA_test_image_generator(joints_path, sorted(joint_image_id_mapping[joint_type]), augment = False, size = 224))
-        # print("All test images loaded ")
+                mapping_type = "_".join(sub_model.split("_")[:-1])
 
-        #Predictions from model
-        joint_type_df = pd.DataFrame(loaded_model.predict(image_batch_array[joint_type][0]))
-        joint_type_df.columns = ['labels_'+ str(i) for i in range(joint_type_df.shape[1])]
+                loaded_model = load_model(sub_model_path, custom_objects={'rmse': rmse})
+                print("Model loaded succesfully -> " + mapping_type)
 
-        joint_type_df['Joint_image_ID'] = [img.split(".")[0] for img in image_batch_array[joint_type][1]]
-        print("Predictions generated ")
+                #Loading the image array for prediction
+                # print(image_batch_array[mapping_type][0].shape)
 
-        # Unique patients in test set
-        patient_id_list = sorted(list(np.unique([img.split(".")[0].split("-")[0] for img in os.listdir(test_path) if img != 'desktop'])))
-        #Calling the prediciton file generator function
-        temp = get_final_submission_file(joint_type_df, joint_type, mapping_file, patient_id_list)
+                preds = pd.DataFrame(weight * loaded_model.predict(image_batch_array[mapping_type][0]))
+                preds.columns =  ['labels_'+ str(i) for i in range(preds.shape[1])]
 
-        final_prediction_file = pd.concat([final_prediction_file, temp], axis = 1)
-        print("All steps for {} completed succesfully ".format(joint_type))
+                joint_preds = pd.concat([joint_preds, preds], axis = 1)
+
+            joint_preds = joint_preds.groupby(lambda x:x, axis=1).sum()
+            # print(joint_preds.head(10)) 
+
+            
+            #Predictions from model
+            joint_type_df = pd.DataFrame(joint_preds)
+            joint_type_df.columns = ['labels_'+ str(i) for i in range(joint_type_df.shape[1])]
+
+            # print([img.split(".")[0] for img in image_batch_array[mapping_type][1]])
+
+            joint_type_df['Joint_image_ID'] = [img.split(".")[0] for img in image_batch_array[mapping_type][1]]
+            print("Predictions generated ")
+
+            # Getting the prediction type 
+            prediction_type = joint_type.split("_")[-1]
+            # print(prediction_type)
+            # Unique patients in test set
+            patient_id_list = sorted(list(np.unique([img.split(".")[0].split("-")[0] for img in os.listdir(test_path) if img != 'desktop'])))
+
+            #Calling the prediciton file generator function
+            temp = get_final_submission_file(joint_type_df, "_".join(joint_type.split("_")[:-1]), prediction_type, mapping_file, patient_id_list)
+            # print(temp.head())
+
+            final_prediction_file = pd.concat([final_prediction_file, temp], axis = 1)
+            # print(final_prediction_file)
+            print("All steps for {} completed succesfully ".format(joint_type))
+
+        else:
+            joint_preds = pd.DataFrame()
+            for weight , model_path in zip(model_weights[0], model_weights[1]):
+
+                print(weight, model_path)
+                loaded_model = load_model(model_path, custom_objects={'rmse': rmse})
+                print("Model loaded succesfully -> " + "_".join(joint_type.split("_")[:-1]))
+
+                # print(image_batch_array["_".join(joint_type.split("_")[:-1])][0].shape)
+                preds = pd.DataFrame(weight * loaded_model.predict(image_batch_array["_".join(joint_type.split("_")[:-1])][0]))
+                preds.columns =  ['labels_'+ str(i) for i in range(preds.shape[1])]
+     
+                    # print(image_batch_array['Hand_finger_erosion'][0].shape)
+                    # preds = pd.DataFrame(weight * loaded_model.predict(image_batch_array['Hand_finger_erosion'][0]))
+                    # preds.columns =  ['labels_'+ str(i) for i in range(preds.shape[1])]
+
+                # print(preds)
+                joint_preds = pd.concat([joint_preds, preds], axis = 1)
+                
+            joint_preds = joint_preds.groupby(lambda x:x, axis=1).sum()
+            # print(joint_preds.head(10)) 
+
+            #Predictions from model
+            joint_type_df = pd.DataFrame(joint_preds)
+            joint_type_df.columns = ['labels_'+ str(i) for i in range(joint_type_df.shape[1])]
+
+            # print([img.split(".")[0] for img in image_batch_array["_".join(joint_type.split("_")[:-1])][1]])
+
+            joint_type_df['Joint_image_ID'] = [img.split(".")[0] for img in image_batch_array["_".join(joint_type.split("_")[:-1])][1]]
+            # print("Predictions generated ")
+
+            # Getting the prediction type 
+            prediction_type = joint_type.split("_")[-1]
+            # print(prediction_type)
+            # Unique patients in test set
+            patient_id_list = sorted(list(np.unique([img.split(".")[0].split("-")[0] for img in os.listdir(test_path) if img != 'desktop'])))
+
+            #Calling the prediciton file generator function
+            temp = get_final_submission_file(joint_type_df, "_".join(joint_type.split("_")[:-1]), prediction_type, mapping_file, patient_id_list)
+
+            final_prediction_file = pd.concat([final_prediction_file, temp], axis = 1)
+            # 
+            # print(final_prediction_file)
+            # print(final_prediction_file.columns)
+
+            print("All steps for {} completed succesfully ".format(joint_type))
 
     #Final prediction file
+    
     final_prediction_file = final_prediction_file .loc[:,~final_prediction_file .columns.duplicated()]
-    #final_prediction_file.to_csv("error_file.csv")
+    final_prediction_file.to_csv("error_file.csv")
     final_prediction_file['Overall_Tol'] = np.sum(final_prediction_file[erosion_cols + narrowing_cols], axis = 1)
     final_prediction_file['Overall_erosion'] = np.sum(final_prediction_file[erosion_cols],              axis = 1)
     final_prediction_file['Overall_narrowing'] = np.sum(final_prediction_file[narrowing_cols],          axis = 1)
@@ -470,8 +661,13 @@ def get_prediction_files(test_path,  joint_model_path_mapping,
 
 if __name__ == '__main__':
     # Defining the Object detection models for Foot and Hands 
-    hand_model_path = "/usr/local/bin/object_detection_model/resnet50_csv_25_hand_classloss_0.0632.h5"
-    foot_model_path = "/usr/local/bin/object_detection_model/resnet50_csv_21_foot_classloss_0.0848.h5"
+    # '\resnet50_csv_25_classloss_0.0632.h5'
+    # '\resnet50_csv_21_classloss_0.0848.h5'
+    start_time = time.time()
+    print(start_time)
+    
+    hand_model_path = "/usr/local/bin/Joint detection model/Hand/resnet50_csv_25_classloss_0.0632.h5"
+    foot_model_path = "/usr/local/bin/Joint detection model/Foot/resnet50_csv_21_classloss_0.0848.h5"
 
     obj_detection_model_dict = {'Foot_detection': foot_model_path,
                                 'Hand_detection' : hand_model_path 
@@ -479,8 +675,8 @@ if __name__ == '__main__':
     # Test images path
     test_path = '/test'
     image_id_list = [img.split(".")[0] for img in os.listdir(test_path)]
-    image_id_list = [image for image in image_id_list if image not in  ['template']]
-    print(image_id_list)
+    image_id_list = [image for image in image_id_list if image != 'desktop']
+    # print(image_id_list)
     #Predictions for joints bounding boxes
     image_array_dict = get_predictions_for_joints(test_path, image_id_list, obj_detection_model_dict)
 
@@ -583,18 +779,44 @@ if __name__ == '__main__':
            'RF_mtp_J__1', 'RF_mtp_J__2', 'RF_mtp_J__3', 'RF_mtp_J__4',
            'RF_mtp_J__5']
 
-    joint_model_path_mapping = {
-                        'Foot_finger' : '/usr/local/bin/joint_prediction_model/foot_finger_model_best_val_rmse_0.21833.h5',
-                        'Hand_finger' : '/usr/local/bin/joint_prediction_model/hand_finger_model_EffnetB4_best.h5',
-                        'wrist': '/usr/local/bin/joint_prediction_model/wrist_model_EffnetB4_best.h5',
-                        'hand_ip':'/usr/local/bin/joint_prediction_model/hand_ip_model_best.h5'
-                        }
 
-    #  =================================== Final prediction_function ===============
+    joint_model_path_mapping = { 'Hand_finger_narrowing' : {
+                                                            'Hand_finger_size_256_narrowing': [[0.8],   ['/usr/local/bin/Joint models v2/Hand finger models/hand_narrowing_model_effnetB3_img_size_256_mse_best_final_MODEL.h5']],
+                                                            'Hand_finger_size_224_narrowing':[[0.2],['/usr/local/bin/Joint models v2/Hand finger models/hand_narrowing_model_effnetB4_img_size_224_mse_v1_best.h5']]
+                                                            },  
+                            
+                                'hand_ip_narrowing' : [[1], ['/usr/local/bin/Joint models v2/Hand ip model/hand_ip_narrowing_efficientnetb3_img_size_256_mse_best.h5']],
+
+                                'Foot_finger_none' : {
+                                                        'Foot_finger_size_256_none' : [[0.7],    ['/usr/local/bin/Joint models v2/Foot models/foot_finger_erosion_model_mse_loss_img_size_256_B4_best.h5']],         
+                                                        'Foot_finger_size_224_none' : [[0.3],    ['/usr/local/bin/Joint models v2/Foot models/Foot updated model size 224/foot_finger_combined_model_mse_loss_img_size_224_B4_best_val_rmse.h5']]
+                                                       },
+                        
+                               'Hand_finger_erosion' : [[0.3, 0.7], ['/usr/local/bin/Joint models v2/Hand finger models/Hand and foot fin ip complete erosion/hand_erosion_hand_ip_erosion_model_effnetB3_img_size_224_weighted_mse_augmented_v2__best.h5', 
+                                                                    '/usr/local/bin/Joint models v2/Hand finger models/Hand and foot fin ip complete erosion/hand_erosion_hand_ip_erosion_model_effnetB3_img_size_224_weighted_mse_augmented_v3__best.h5']], 
+
+                               'wrist_erosion':      [[0.7, .15, 0.15], ['/usr/local/bin/Joint models v2/Wrist models/wrist_erosion_model_EffnetB5_best_v9.h5',      # Image size 200
+                                                    '/usr/local/bin/Joint models v2/Wrist models/wrist_erosion_model_EffnetB5_best_v10.h5',                       # Image size 200
+                                                    '/usr/local/bin/Joint models v2/Wrist models/wrist_erosion_model_v5_mse_loss_img_size_200_best_v1.h5']],      # Image size 200
+
+                              'wrist_narrowing': [[0.8, 0.2],   ['/usr/local/bin/Joint models v2/Wrist models/wrist_narrowing_model_v5_mse_loss_img_FINAL_rmse_0.44_size_200_best_v1.h5',               #Image size 200
+                                                                                '/usr/local/bin/Joint models v2/Wrist models/wrist_narrowing_model_v5_mse_loss_img_size_200_best_v2.h5']]     #Image size 200
+                    
+
+                    }
+                
     prediction_df = get_prediction_files(test_path, joint_model_path_mapping, 
                                         final_mapping_file, all_columns, erosion_cols, 
                                         narrowing_cols, image_array_dict)
-    print(prediction_df)
+
+    print(prediction_df.head(20))
     prediction_df.to_csv('/output/predictions.csv', index=False)
+    print("Predictions saved succesfully")
 
+    end_time = time.time()
+    print("Time taken for generating predictions for 367 patients is ", (end_time-start_time)/3600, " minutes")
 
+## Outline 
+# Make a model path dictionary with same column names as in the final mapping file so that every thing matches
+## See a method to add 2 2d arrays elementwise and take a mean 
+### Run the final submission
