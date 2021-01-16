@@ -12,7 +12,3 @@ This approach has been evaluated on hand and feet radiographs of patients suffer
 ![alt text](https://github.com/NC717/DeepRA/blob/main/images/Final_hand_annotation.JPG?raw=true "Fingers/Wrist detected in hand radiographs")
 
 # Attention Map visuals
-- Foot Erosion Attention Maps
-![alt text](https://github.com/NC717/DeepRA/blob/main/images/Foot_erosion_attention_maps.JPG?raw=true "Attention weights while predicting erosion in feet fingers")
-- Wrist Erosion Attention Maps
-![alt text](https://github.com/NC717/DeepRA/blob/main/images/Wrist_erosion_attention.JPG?raw=true "AAttention weights while predicting erosion in wrist")
